@@ -28,4 +28,5 @@ cron
 
 # Create log file and keep container alive
 touch "$LOG_FILE"
+echo "[entrypoint] Starting unifi-backup-docker-tool, cron schedule: $CRON_SCHEDULE"
 tail -f "$LOG_FILE"
