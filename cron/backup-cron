@@ -1,0 +1,2 @@
+SHELL=/bin/bash
+$BACKUP_CRON_SCHEDULE /usr/local/bin/python3 /app/src/main.py >> /var/log/unifi-backup.log 2>&1

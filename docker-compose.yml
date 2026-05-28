@@ -1,0 +1,8 @@
+services:
+  unifi-backup-docker-tool:
+    container_name: unifi-backup-docker-tool
+    build: .
+    env_file: .env
+    volumes:
+      - ./backups:/backups
+    restart: unless-stopped
