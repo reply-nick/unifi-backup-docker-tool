@@ -54,7 +54,8 @@ def download() -> Path:
         if incompetent_fs:
             filename = filename.replace(":", ".")
 
-    logger.info('downloaded "%s"', filename)
+    content_length = len(resp.content)
+    logger.info('downloaded "%s" (%d bytes)', filename, content_length)
     download_path = Path(backup_folder) / filename
     Path(backup_folder).mkdir(parents=True, exist_ok=True)
     with Path(download_path).open("wb") as f:
@@ -70,7 +71,7 @@ def cleanup():
     max_count = int(_get_env("BACKUP_LOCAL_MAX_COUNT", "7"))
 
     backups = []
-    logger.info("starting clean up")
+    logger.info("starting clean up (max_count=%d, min_age=%d days)", max_count, min_age_days)
     for b in Path(backup_folder).iterdir():
         if not b.is_file():
             continue
@@ -79,8 +80,10 @@ def cleanup():
         file_ts = parse_backup_timestamp(b.name, convert_ts)
         backups.append((file_ts, b))
 
+    logger.info("found %d local backups", len(backups))
     backups.sort(key=lambda x: x[0], reverse=True)
     now = datetime.now()
+    deleted = 0
 
     for b in backups[max_count:]:
         backup_path = b[1]
@@ -89,3 +92,6 @@ def cleanup():
             continue
         logger.info('deleting backup "%s"', backup_path)
         backup_path.unlink()
+        deleted += 1
+
+    logger.info("local cleanup complete: %d deleted, %d remaining", deleted, len(backups) - deleted)

@@ -7,7 +7,7 @@ LOG_FILE="/var/log/unifi-backup.log"
 REQUIRED_VARS="UNIFI_SERVER_ADDRESS UNIFI_USER UNIFI_PASSWORD BACKUP_FOLDER SAMBA_HOST SAMBA_SHARE SAMBA_USER SAMBA_PASSWORD SAMBA_REMOTE_PATH"
 for var in $REQUIRED_VARS; do
     if [ -z "${!var}" ]; then
-        echo "ERROR: Required environment variable '$var' is not set" >&2
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S') [ERROR] Required environment variable '$var' is not set" >&2
         exit 1
     fi
 done
@@ -28,11 +28,11 @@ cron
 
 # Run an initial backup on startup if enabled
 if [ "${BACKUP_ON_START:-true}" = "true" ]; then
-    echo "[entrypoint] Running initial backup on startup"
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S') [entrypoint] Running initial backup on startup"
     /usr/local/bin/python3 /app/src/main.py
 fi
 
 # Create log file and keep container alive
 touch "$LOG_FILE"
-echo "[entrypoint] Starting unifi-backup-docker-tool, cron schedule: $CRON_SCHEDULE"
+echo "$(date -u '+%Y-%m-%d %H:%M:%S') [entrypoint] Starting unifi-backup-docker-tool, cron schedule: $CRON_SCHEDULE"
 tail -f "$LOG_FILE"

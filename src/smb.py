@@ -74,7 +74,8 @@ def _ensure_dir_exists(tree, path):
 
 
 def upload(local_file_path: Path) -> None:
-    logger.info("uploading %s", local_file_path)
+    file_size = local_file_path.stat().st_size
+    logger.info("uploading %s (%d bytes)", local_file_path, file_size)
     host, share, user, password, domain, remote_path = _get_samba_config()
 
     conn, session = _create_session(host, user, password)
@@ -97,12 +98,14 @@ def upload(local_file_path: Path) -> None:
             create_options=0,
         )
         chunk_size = 4 * 1024 * 1024
+        total_chunks = (len(data) + chunk_size - 1) // chunk_size
         for i in range(0, len(data), chunk_size):
             chunk = data[i : i + chunk_size]
             file_open.write(chunk)
         file_open.close()
 
-        logger.info("uploaded %s to %s/", local_file_path.name, remote_path)
+        logger.info("uploaded %s (%d bytes) to %s/ (%d chunks)",
+                     local_file_path.name, file_size, remote_path, total_chunks)
     finally:
         try:
             tree.disconnect()
@@ -111,11 +114,12 @@ def upload(local_file_path: Path) -> None:
 
 
 def cleanup() -> None:
-    logger.info("starting samba cleanup")
     host, share, user, password, domain, remote_path = _get_samba_config()
     min_age_days = int(os.environ.get("SAMBA_MIN_AGE_DAYS", "30"))
     max_count = int(os.environ.get("SAMBA_MAX_COUNT", "30"))
     convert_ts = os.environ.get("BACKUP_CONVERT_TIMESTAMP", "true").lower() == "true"
+
+    logger.info("starting samba cleanup (max_count=%d, min_age=%d days)", max_count, min_age_days)
 
     conn, session = _create_session(host, user, password)
 
@@ -150,8 +154,10 @@ def cleanup() -> None:
             file_ts = parse_backup_timestamp(name, convert_ts)
             backups.append((file_ts, name))
 
+        logger.info("found %d remote backups on samba share", len(backups))
         backups.sort(key=lambda x: x[0], reverse=True)
         now = datetime.now()
+        deleted = 0
 
         for b in backups[max_count:]:
             file_ts, name = b
@@ -171,8 +177,11 @@ def cleanup() -> None:
                 )
                 file_open.close()
                 logger.info("deleted %s from samba share", name)
+                deleted += 1
             except Exception as e:
                 logger.error("failed to delete %s: %s", name, e)
+
+        logger.info("samba cleanup complete: %d deleted, %d remaining", deleted, len(backups) - deleted)
     finally:
         try:
             tree.disconnect()
