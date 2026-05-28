@@ -149,6 +149,11 @@ On each scheduled run, the tool executes the following steps:
 
 Each step is error-isolated: a failure in one step does not prevent the others from completing. All steps are always attempted regardless of earlier failures, and an email report is sent after every run.
 
+## Docs
+
+- [Portainer Deployment](docs/portainer.md)
+- [Development](docs/development.md)
+
 ## License
 
 MIT
