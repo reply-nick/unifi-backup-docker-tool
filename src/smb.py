@@ -113,7 +113,7 @@ def upload(local_file_path: Path) -> None:
             pass
 
 
-def cleanup() -> None:
+def cleanup() -> int | None:
     host, share, user, password, domain, remote_path = _get_samba_config()
     min_age_days = int(os.environ.get("SAMBA_MIN_AGE_DAYS", "30"))
     max_count = int(os.environ.get("SAMBA_MAX_COUNT", "30"))
@@ -138,7 +138,7 @@ def cleanup() -> None:
             )
         except Exception:
             logger.info("remote path %s does not exist, skipping cleanup", remote_path)
-            return
+            return None
 
         files = dir_open.query_directory(
             pattern=f"{BACKUP_FILE_NAME_PREFIX}*",
@@ -182,6 +182,7 @@ def cleanup() -> None:
                 logger.error("failed to delete %s: %s", name, e)
 
         logger.info("samba cleanup complete: %d deleted, %d remaining", deleted, len(backups) - deleted)
+        return len(backups) - deleted
     finally:
         try:
             tree.disconnect()

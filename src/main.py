@@ -4,9 +4,11 @@ import os
 import sys
 import time
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from backup import download, cleanup as local_cleanup
+from reporter import BackupReport, send_report
 from smb import upload, cleanup as samba_cleanup
 from utils import rename_for_samba
 
@@ -87,32 +89,68 @@ def main():
                 _get_env("SAMBA_MIN_AGE_DAYS", "30"))
     logger.info("=" * 60)
 
+    report = BackupReport(success=False, started_at=datetime.now())
+
+    backup_path: Path | None = None
+
     with timing("download"):
         try:
             backup_path = download()
+            report.filename = backup_path.name
+            report.filesize_bytes = backup_path.stat().st_size
+            report.local_path = str(backup_path)
         except Exception:
             logger.exception("download failed")
-            return
+            report.errors.append("Download failed")
 
     with timing("local cleanup"):
         try:
-            local_cleanup()
+            remaining = local_cleanup()
+            report.local_cleanup_success = True
+            report.local_backups_remaining = remaining
         except Exception:
             logger.exception("local cleanup failed")
+            report.local_cleanup_error = str(sys.exc_info()[1])
+            report.errors.append("Local cleanup failed")
 
-    backup_path = Path(rename_for_samba(str(backup_path)))
-
-    with timing("samba upload"):
-        try:
-            upload(backup_path)
-        except Exception:
-            logger.exception("samba upload failed")
+    if backup_path is not None:
+        backup_path = Path(rename_for_samba(str(backup_path)))
+        with timing("samba upload"):
+            try:
+                upload(backup_path)
+                report.samba_upload_success = True
+            except Exception:
+                logger.exception("samba upload failed")
+                report.samba_upload_error = str(sys.exc_info()[1])
+                report.errors.append("Samba upload failed")
+    else:
+        logger.warning("skipping samba upload — no backup available")
+        report.errors.append("Samba upload skipped — no backup available")
 
     with timing("samba cleanup"):
         try:
-            samba_cleanup()
+            remaining = samba_cleanup()
+            report.samba_cleanup_success = True
+            report.samba_backups_remaining = remaining
         except Exception:
             logger.exception("samba cleanup failed")
+            report.samba_cleanup_error = str(sys.exc_info()[1])
+            report.errors.append("Samba cleanup failed")
+
+    report.finished_at = datetime.now()
+
+    if report.success is False:
+        report.success = (
+            report.filename is not None
+            and report.local_cleanup_success
+            and report.samba_upload_success
+            and report.samba_cleanup_success
+        )
+
+    try:
+        send_report(report)
+    except Exception:
+        logger.exception("report sending failed")
 
     logger.info("finished")
 

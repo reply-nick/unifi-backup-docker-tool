@@ -64,7 +64,7 @@ def download() -> Path:
     return download_path
 
 
-def cleanup():
+def cleanup() -> int:
     backup_folder = _get_env("BACKUP_FOLDER")
     convert_ts = _get_env("BACKUP_CONVERT_TIMESTAMP", "true").lower() == "true"
     min_age_days = int(_get_env("BACKUP_LOCAL_MIN_AGE_DAYS", "7"))
@@ -94,4 +94,6 @@ def cleanup():
         backup_path.unlink()
         deleted += 1
 
-    logger.info("local cleanup complete: %d deleted, %d remaining", deleted, len(backups) - deleted)
+    remaining = len(backups) - deleted
+    logger.info("local cleanup complete: %d deleted, %d remaining", deleted, remaining)
+    return remaining

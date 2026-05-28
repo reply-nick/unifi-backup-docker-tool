@@ -13,6 +13,7 @@ Dockerized UniFi OS backup service with an internal cron scheduler, local backup
 - Graceful error handling — Samba failures don't block local backups and vice versa
 - Automatic remote directory creation on first upload
 - Resilient timestamp parsing (handles both `:` and `.` separators)
+- Plaintext email reports via SMTP on each run (optional)
 - Dual logging to both stdout and `/var/log/unifi-backup.log`
 
 ## Prerequisites
@@ -70,6 +71,7 @@ unifi-backup-docker-tool/
 └── src/
     ├── backup.py      # UniFi backup download and local cleanup
     ├── main.py        # Orchestration entrypoint
+    ├── reporter.py    # Email report generation and sending
     ├── smb.py         # Samba upload and remote cleanup
     └── utils.py       # Shared utilities (timestamp parsing, renaming)
 ```
@@ -81,7 +83,7 @@ unifi-backup-docker-tool/
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `UNIFI_SERVER_ADDRESS` | Yes | — | UniFi OS controller URL (e.g. `https://192.168.1.1:443`) |
-| `UNIFI_USER` | Yes | — | Username for login |
+| `UNIFI_USER` | Yes | — | Username (must be a Super Admin or Owner) |
 | `UNIFI_PASSWORD` | Yes | — | Password for login |
 | `UNIFI_VALIDATE_TLS` | No | `false` | Validate TLS certificate (`true`/`false`) |
 
@@ -108,11 +110,31 @@ unifi-backup-docker-tool/
 | `SAMBA_MIN_AGE_DAYS` | No | `30` | Minimum age before remote backups are eligible for deletion |
 | `SAMBA_MAX_COUNT` | No | `30` | Maximum number of remote backups to keep |
 
+### General
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `BACKUP_ON_START` | No | `true` | Run backup on container startup (`true`/`false`) |
+| `LOG_LEVEL` | No | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+
 ### Cron
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `BACKUP_CRON_SCHEDULE` | No | `0 3 * * *` | Cron schedule expression (default: daily at 3am) |
+
+### Email
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SMTP_ENABLED` | No | `false` | Enable email reporting (`true`/`false`) |
+| `SMTP_HOST` | Yes (if enabled) | — | SMTP server hostname |
+| `SMTP_PORT` | No | `587` | SMTP port (use `465` for SSL) |
+| `SMTP_USER` | Yes (if enabled) | — | SMTP login username |
+| `SMTP_PASSWORD` | Yes (if enabled) | — | SMTP login password |
+| `SMTP_FROM` | Yes (if enabled) | — | Sender address |
+| `SMTP_TO` | Yes (if enabled) | — | Recipient address |
+| `SMTP_TLS` | No | `true` | Use STARTTLS (`true`) or SSL on port 465 (`false`) |
 
 ## How It Works
 
@@ -123,8 +145,9 @@ On each scheduled run, the tool executes the following steps:
 3. **Rename** — Converts `:` to `.` in timestamps for Samba filename compatibility
 4. **Samba upload** — Uploads the backup to the remote share (auto-creates directory if missing)
 5. **Samba cleanup** — Prunes remote backups exceeding retention policy
+6. **Email report** — Sends a plaintext summary of the run via SMTP (if `SMTP_ENABLED=true`)
 
-Each step is error-isolated: a failure in one step does not prevent the others from completing.
+Each step is error-isolated: a failure in one step does not prevent the others from completing. All steps are always attempted regardless of earlier failures, and an email report is sent after every run.
 
 ## License
 
