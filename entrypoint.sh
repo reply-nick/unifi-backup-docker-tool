@@ -26,6 +26,12 @@ crontab /etc/cron.d/unifi-backup-cron
 # Start cron in the background
 cron
 
+# Run an initial backup on startup if enabled
+if [ "${BACKUP_ON_START:-true}" = "true" ]; then
+    echo "[entrypoint] Running initial backup on startup"
+    /usr/local/bin/python3 /app/src/main.py
+fi
+
 # Create log file and keep container alive
 touch "$LOG_FILE"
 echo "[entrypoint] Starting unifi-backup-docker-tool, cron schedule: $CRON_SCHEDULE"
