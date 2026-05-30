@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import logging
 import os
-import sys
 import time
 from contextlib import contextmanager
 from datetime import datetime
@@ -15,19 +14,6 @@ from utils import rename_for_samba
 LOG_FILE = "/var/log/unifi-backup.log"
 
 FORMAT = "%(asctime)s [%(levelname)s] %(name)s:%(funcName)s:%(lineno)d - %(message)s"
-
-
-class DualHandler(logging.Handler):
-    """Writes log records to both stdout and a log file."""
-
-    def __init__(self, stream_handler, file_handler):
-        super().__init__()
-        self._stream = stream_handler
-        self._file = file_handler
-
-    def emit(self, record):
-        self._stream.emit(record)
-        self._file.emit(record)
 
 
 def _get_env(name: str, default: str | None = None) -> str:
@@ -57,16 +43,13 @@ def timing(label: str):
             logger.info("%s completed in %.1fs", label, seconds)
 
 
-_stream_handler = logging.StreamHandler(sys.stdout)
-_stream_handler.setFormatter(logging.Formatter(FORMAT))
-
 _file_handler = logging.FileHandler(LOG_FILE)
 _file_handler.setFormatter(logging.Formatter(FORMAT))
 
 root_logger = logging.getLogger()
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 root_logger.setLevel(getattr(logging, log_level, logging.INFO))
-root_logger.addHandler(DualHandler(_stream_handler, _file_handler))
+root_logger.addHandler(_file_handler)
 
 logger = logging.getLogger(__name__)
 

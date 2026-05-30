@@ -17,11 +17,7 @@ printenv > /etc/environment
 
 # Write crontab with substituted BACKUP_CRON_SCHEDULE
 CRON_SCHEDULE="${BACKUP_CRON_SCHEDULE:-0 3 * * *}"
-sed "s|\$BACKUP_CRON_SCHEDULE|$CRON_SCHEDULE|g" /app/cron/backup-cron > /etc/cron.d/unifi-backup-cron
-chmod 0644 /etc/cron.d/unifi-backup-cron
-
-# Install the crontab
-crontab /etc/cron.d/unifi-backup-cron
+sed "s|\$BACKUP_CRON_SCHEDULE|$CRON_SCHEDULE|g" /app/cron/backup-cron | crontab -
 
 # Start cron in the background
 cron
