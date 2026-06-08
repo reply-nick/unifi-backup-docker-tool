@@ -21,7 +21,15 @@ def parse_backup_timestamp(name: str, convert_ts: bool = True) -> datetime:
         try:
             return datetime.fromisoformat(ts)
         except ValueError:
-            return datetime.fromisoformat(ts.replace(".", ":"))
+            try:
+                return datetime.fromisoformat(ts.replace(".", ":"))
+            except ValueError:
+                # Fallback: might be a Unix timestamp in milliseconds
+                try:
+                    return datetime.fromtimestamp(int(ts) / 1000)
+                except (ValueError, OverflowError):
+                    logger.error(f"Failed to parse timestamp from filename: {name}")
+                    raise
     else:
         return datetime.fromtimestamp(int(ts) / 1000)
 
