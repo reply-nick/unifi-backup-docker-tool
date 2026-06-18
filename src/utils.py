@@ -1,6 +1,9 @@
 import logging
 import os
+import random
+import time
 from datetime import datetime
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 
@@ -44,3 +47,44 @@ def rename_for_samba(local_file_path: str) -> str:
         os.rename(local_file_path, renamed)
         logger.info("renamed %s -> %s", local_file_path, renamed)
     return renamed
+
+
+def retry(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0, jitter: bool = True):
+    """Retry a function on transient failure with exponential backoff.
+
+    Args:
+        max_attempts: Maximum number of attempts (default 3).
+        delay: Initial delay between retries in seconds (default 1.0).
+        backoff: Multiplier applied to delay after each retry (default 2.0).
+        jitter: Add random jitter to delay to avoid thundering herd (default True).
+    """
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            last_exc = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as exc:
+                    last_exc = exc
+                    if attempt == max_attempts:
+                        raise
+                    logger.warning(
+                        "%s attempt %d/%d failed: %s — retrying in %.1fs",
+                        fn.__name__,
+                        attempt,
+                        max_attempts,
+                        exc,
+                        current_delay,
+                    )
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+                    if jitter:
+                        current_delay *= (0.5 + random.random())
+
+        return wrapper
+
+    return decorator

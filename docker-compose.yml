@@ -8,3 +8,9 @@ services:
     volumes:
       - ./backups:/backups
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import time, os; exit(0) if os.path.getmtime('/var/log/unifi-backup.log') > time.time() - 3600 else exit(1)\""]
+      interval: 5m
+      timeout: 10s
+      retries: 1
+      start_period: 2m

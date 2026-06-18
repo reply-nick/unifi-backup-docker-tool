@@ -1,9 +1,21 @@
 import os
+import sys
+import tempfile
 from datetime import datetime
 
 import pytest
 
+# The source files use bare module imports (e.g. "from utils import ...").
+# Add the src/ directory so those imports resolve.
+_src_dir = os.path.join(os.path.dirname(__file__), "..", "src")
+sys.path.insert(0, _src_dir)
+
 from src.reporter import BackupReport
+
+# main.py creates a FileHandler at module level for /var/log/unifi-backup.log.
+# Outside Docker we can't write there, so point it at a temp file.
+_test_log = os.path.join(tempfile.gettempdir(), "unifi-backup-test.log")
+os.environ["LOG_FILE"] = _test_log
 
 
 SMTP_VARS = [

@@ -16,6 +16,4 @@ RUN chmod +x /entrypoint.sh
 
 RUN pip install --no-cache-dir smbprotocol requests
 
-EXPOSE 8080
-
 CMD ["/entrypoint.sh"]

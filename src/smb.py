@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -20,7 +22,7 @@ import logging
 import os
 import uuid
 
-from utils import BACKUP_FILE_NAME_PREFIX, parse_backup_timestamp
+from utils import BACKUP_FILE_NAME_PREFIX, parse_backup_timestamp, retry
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,7 @@ def _ensure_dir_exists(tree, path):
             pass
 
 
+@retry(max_attempts=3, delay=2.0, backoff=2.0)
 def upload(local_file_path: Path) -> None:
     file_size = local_file_path.stat().st_size
     logger.info("uploading %s (%d bytes)", local_file_path, file_size)
@@ -85,9 +88,6 @@ def upload(local_file_path: Path) -> None:
         _ensure_dir_exists(tree, remote_path)
         remote_full_path = f"{remote_path}/{local_file_path.name}"
 
-        with open(str(local_file_path), "rb") as f:
-            data = f.read()
-
         file_open = Open(tree, remote_full_path)
         file_open.create(
             impersonation_level=ImpersonationLevel.Impersonation,
@@ -98,10 +98,13 @@ def upload(local_file_path: Path) -> None:
             create_options=0,
         )
         chunk_size = 4 * 1024 * 1024
-        total_chunks = (len(data) + chunk_size - 1) // chunk_size
-        for i in range(0, len(data), chunk_size):
-            chunk = data[i : i + chunk_size]
-            file_open.write(chunk)
+        total_chunks = (file_size + chunk_size - 1) // chunk_size
+        with open(str(local_file_path), "rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                file_open.write(chunk)
         file_open.close()
 
         logger.info("uploaded %s (%d bytes) to %s/ (%d chunks)",

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import logging
 import os
 import sys
@@ -12,7 +14,7 @@ from reporter import BackupReport, send_report
 from smb import upload, cleanup as samba_cleanup
 from utils import rename_for_samba
 
-LOG_FILE = "/var/log/unifi-backup.log"
+LOG_FILE = os.environ.get("LOG_FILE", "/var/log/unifi-backup.log")
 
 FORMAT = "%(asctime)s [%(levelname)s] %(name)s:%(funcName)s:%(lineno)d - %(message)s"
 
@@ -98,7 +100,9 @@ def main():
             report.errors.append("Local cleanup failed")
 
     if backup_path is not None:
-        backup_path = Path(rename_for_samba(str(backup_path)))
+        incompetent_fs = _get_env("BACKUP_INCOMPETENT_FS", "false").lower() == "true"
+        if not incompetent_fs:
+            backup_path = Path(rename_for_samba(str(backup_path)))
         with timing("samba upload"):
             try:
                 upload(backup_path)

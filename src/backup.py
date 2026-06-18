@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import logging
 import os
 from datetime import datetime, timedelta
@@ -6,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from utils import BACKUP_FILE_NAME_PREFIX, parse_backup_timestamp
+from utils import BACKUP_FILE_NAME_PREFIX, parse_backup_timestamp, retry
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,7 @@ def _get_env(name: str, default: str | None = None) -> str:
     return value
 
 
+@retry(max_attempts=3, delay=2.0, backoff=2.0)
 def download() -> Path:
     server_address = _get_env("UNIFI_SERVER_ADDRESS").removesuffix("/")
     user_name = _get_env("UNIFI_USER")
