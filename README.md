@@ -21,6 +21,23 @@ Dockerized UniFi OS backup service with an internal cron scheduler, local backup
 - Docker
 - Docker Compose
 
+## Quick Start
+
+Run the pre-built image directly (no build step required):
+
+```bash
+# 1. Create a .env file with your credentials
+cp .env.example .env
+# Edit .env with your UniFi and Samba details
+
+# 2. Run the container
+docker run -d \
+  --name unifi-backup \
+  --env-file .env \
+  -v unifi-backup-data:/app/backups \
+  ghcr.io/reply-nick/unifi-backup-docker-tool:latest
+```
+
 ## Setup
 
 1. Clone this repository:
@@ -38,7 +55,7 @@ cp .env.example .env
 
 3. Update `.env` with your UniFi controller credentials, Samba server details, and retention settings.
 
-## Usage
+## Usage (Docker Compose)
 
 Start the service:
 
@@ -56,6 +73,13 @@ Stop the service:
 
 ```bash
 docker compose down
+```
+
+To update to the latest image version:
+
+```bash
+docker compose pull
+docker compose up -d
 ```
 
 ## Directory Structure

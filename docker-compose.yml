@@ -1,7 +1,7 @@
 services:
   unifi-backup-docker-tool:
     container_name: unifi-backup-docker-tool
-    build: .
+    image: ghcr.io/reply-nick/unifi-backup-docker-tool:latest
     env_file: .env
     environment:
       - TZ=America/Chicago

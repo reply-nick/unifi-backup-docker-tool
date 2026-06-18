@@ -1,21 +1,60 @@
 # Portainer Deployment
 
-Portainer stacks do not support the `build:` directive — images must be built
-manually on the host first and then referenced by name in the stack config.
+The published image is available at
+`ghcr.io/reply-nick/unifi-backup-docker-tool:latest` — no build step is needed.
 
 ---
 
-## 1. Build the Image
+## 1. Create the Environment File
 
-SSH into your host and run:
+On the Portainer host, create a `stack.env` file with your credentials.
+Use the template below as a starting point:
 
-```bash
-cd /path-to/unifi-backup-docker-tool
-docker build -t unifi-backup-docker-tool:latest .
+```env
+# UniFi
+UNIFI_SERVER_ADDRESS=https://192.168.1.1:443
+UNIFI_USER=admin
+UNIFI_PASSWORD=secret
+UNIFI_VALIDATE_TLS=false
+
+# Local storage
+BACKUP_FOLDER=/backups
+BACKUP_CONVERT_TIMESTAMP=true
+BACKUP_INCOMPETENT_FS=false
+BACKUP_LOCAL_MIN_AGE_DAYS=7
+BACKUP_LOCAL_MAX_COUNT=7
+
+# Samba
+SAMBA_HOST=192.168.1.100
+SAMBA_SHARE=Backups
+SAMBA_USER=sambauser
+SAMBA_PASSWORD=sambapass
+SAMBA_DOMAIN=WORKGROUP
+SAMBA_REMOTE_PATH=unifi
+SAMBA_MIN_AGE_DAYS=30
+SAMBA_MAX_COUNT=30
+
+# Cron schedule (default: 3am daily)
+BACKUP_CRON_SCHEDULE=0 3 * * *
+
+# Run backup on container startup (default: true)
+BACKUP_ON_START=true
+
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
+LOG_LEVEL=INFO
+
+# Email reporting (optional)
+SMTP_ENABLED=false
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM=you@gmail.com
+SMTP_TO=you@gmail.com
+SMTP_TLS=true
 ```
 
-This builds the image locally and tags it as `unifi-backup-docker-tool:latest`.
-No registry is required — Portainer will find it directly on the host.
+Edit each value to match your environment.
 
 ---
 
@@ -28,7 +67,7 @@ In Portainer go to **Stacks → Add stack**, give it the name
 services:
   unifi-backup-docker-tool:
     container_name: unifi-backup-docker-tool
-    image: unifi-backup-docker-tool:latest
+    image: ghcr.io/reply-nick/unifi-backup-docker-tool:latest
     env_file: stack.env
     environment:
       - TZ=America/Chicago
@@ -45,24 +84,14 @@ services:
 
 ## 3. Deploy
 
-Click **Deploy the stack**. Portainer will start the container using the locally
-built image. You can verify it is running under **Containers** and tail live logs
-from the **Logs** tab.
+Click **Deploy the stack**. Portainer will pull the image from the GitHub
+Container Registry and start the container. You can verify it is running under
+**Containers** and tail live logs from the **Logs** tab.
 
 ---
 
-## Rebuilding After Code Changes
+## Updating
 
-Portainer cannot rebuild images automatically. After any change to the source
-code or `Dockerfile`, rebuild the image manually on the host:
-
-```bash
-cd /path-to/unifi-backup-docker-tool
-docker build -t unifi-backup-docker-tool:latest .
-```
-
-Then redeploy the stack in Portainer (**Stacks → unifi-backup-docker-tool →
-Editor → Update the stack**). Portainer will recreate the container using the
-newly built image.
-
----
+To update to the latest version, go to your stack in Portainer
+(**Stacks → unifi-backup-docker-tool → Editor → Update the stack**). Portainer
+will pull the newest image and recreate the container.
